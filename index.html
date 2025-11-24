@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dream-to-Storyboard ⚡ FLUX Edition</title>
+  <style>
+    :root { --neon: #0f0; --bg: #050505; --panel-bg: #111; }
+    body { 
+      font-family: 'Courier New', monospace; 
+      background: var(--bg); 
+      color: var(--neon); 
+      text-align: center; 
+      margin: 0; padding: 20px;
+    }
+    h1 { text-shadow: 0 0 10px var(--neon); margin-bottom: 5px; }
+    p { opacity: 0.8; margin-bottom: 30px; }
+
+    /* Controls */
+    .controls {
+      background: #111; border: 1px solid var(--neon); 
+      padding: 20px; max-width: 800px; margin: 0 auto 30px auto;
+      border-radius: 12px; box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+    }
+    textarea, select, button { 
+      background: #000; color: var(--neon); 
+      border: 1px solid #333; border-radius: 6px;
+      padding: 12px; font-family: inherit; width: 95%; margin-bottom: 10px;
+      font-size: 1rem;
+    }
+    textarea:focus, select:focus { outline: none; border-color: var(--neon); }
+    
+    button { 
+      background: var(--neon); color: #000; font-weight: bold; 
+      cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+    button:hover { transform: scale(1.02); box-shadow: 0 0 15px var(--neon); }
+    button:active { transform: scale(0.98); }
+
+    /* Grid */
+    .storyboard-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+      gap: 20px; max-width: 1400px; margin: 0 auto;
+    }
+
+    /* Panel Card */
+    .panel-card {
+      background: var(--panel-bg); border: 1px solid #333;
+      border-radius: 8px; overflow: hidden; position: relative;
+      min-height: 300px; display: flex; flex-direction: column;
+    }
+    .panel-header {
+      padding: 8px; background: #000; border-bottom: 1px solid #333;
+      font-size: 0.8rem; text-align: left; display: flex; justify-content: space-between;
+    }
+    .img-container {
+      flex-grow: 1; position: relative; background: #000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    img { 
+      width: 100%; height: auto; display: block; opacity: 0; 
+      transition: opacity 0.5s ease;
+    }
+    img.loaded { opacity: 1; }
+    
+    /* Loading Spinner */
+    .spinner {
+      border: 4px solid #333; border-top: 4px solid var(--neon);
+      border-radius: 50%; width: 30px; height: 30px;
+      animation: spin 1s linear infinite; position: absolute;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* Footer actions */
+    .panel-actions {
+      display: flex; gap: 5px; padding: 5px; background: #000;
+    }
+    .mini-btn {
+      flex: 1; font-size: 0.7rem; padding: 5px; margin: 0;
+      background: #222; color: #fff; border: 1px solid #444;
+    }
+    .mini-btn:hover { background: #333; }
+  </style>
+</head>
+<body>
+
+  <h1>🌙 Dream-to-Storyboard 2.0</h1>
+  <p>Powered by Pollinations.ai (FLUX Model) • Created By Sam J. Jam </p>
+
+  <div class="controls">
+    <textarea id="prompt" rows="3" placeholder="Describe your nightmare: e.g. A detective discovers that the city he lives in is actually made of cardboard..."></textarea>
+    
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <select id="style" style="flex:2">
+        <option value="Cinematic lighting, 35mm film grain, hyper-realistic">Cinematic Realism</option>
+        <option value="Junji Ito style horror manga, high contrast ink">Junji Ito Manga</option>
+        <option value="Dark fantasy oil painting, Frank Frazetta style">Dark Fantasy Oil</option>
+        <option value="Cyberpunk neon noir, wet streets, Blade Runner vibes">Cyberpunk Noir</option>
+        <option value="Vintage 1950s comic book style, halftone dots">Vintage Comic</option>
+        <option value="Tim Burton stop-motion animation style">Burton Stop-Motion</option>
+      </select>
+      <select id="aspect" style="flex:1">
+        <option value="landscape">Wide (16:9)</option>
+        <option value="portrait">Tall (9:16)</option>
+        <option value="square">Square (1:1)</option>
+      </select>
+    </div>
+
+    <button onclick="generateStory()">⚡ GENERATE STORYBOARD</button>
+  </div>
+
+  <div class="storyboard-grid" id="grid">
+    <!-- Panels will appear here -->
+  </div>
+
+  <script>
+    // Configuration
+    const POLLINATIONS_URL = "https://image.pollinations.ai/prompt/";
+    const MODEL = "flux"; // Flux is currently the best free model on Pollinations
+    
+    // Panel Narrative Structure (Prompt Engineering)
+    const narrativeArc = [
+      "Extreme wide shot, establishing the setting, quiet before the storm",
+      "Medium shot, the main character or object is introduced, something feels wrong",
+      "Close up, intense detail, the horror/dream element reveals itself",
+      "Dutch angle, dynamic action, running or transformation, chaos",
+      "Surreal imagery, physics breaking down, nightmare logic peak intensity",
+      "Fading out, eerie calmness, lingering silhouette, ambiguous ending"
+    ];
+
+    function getDimensions() {
+      const aspect = document.getElementById("aspect").value;
+      if (aspect === "landscape") return { w: 1280, h: 720 };
+      if (aspect === "portrait") return { w: 720, h: 1280 };
+      return { w: 1024, h: 1024 };
+    }
+
+    function generateStory() {
+      const userPrompt = document.getElementById("prompt").value.trim();
+      const style = document.getElementById("style").value;
+      const grid = document.getElementById("grid");
+      const dim = getDimensions();
+
+      if (!userPrompt) return alert("Please describe your dream first!");
+
+      // Clear previous results
+      grid.innerHTML = "";
+      
+      // Create a consistent random seed for the 'world' coherence
+      const storySeed = Math.floor(Math.random() * 1000000);
+
+      // Generate 6 Panels
+      for (let i = 0; i < 6; i++) {
+        createPanel(i, userPrompt, style, narrativeArc[i], storySeed, dim);
+      }
+    }
+
+    function createPanel(index, basePrompt, style, narrativeStep, seed, dim) {
+      const grid = document.getElementById("grid");
+      
+      // Construct the prompt
+      // We add specific keywords to force consistency and quality
+      const finalPrompt = `Story panel ${index + 1} of 6. ${narrativeStep}. The scene is: ${basePrompt}. Art style: ${style}. High quality, detailed, masterpiece.`;
+      
+      // Encode for URL
+      const safePrompt = encodeURIComponent(finalPrompt);
+      
+      // Construct URL (nologo=true removes watermarks)
+      // We add 'index' to the seed to ensure panels are different, but close enough in number to share latent space properties sometimes
+      const imageUrl = `${POLLINATIONS_URL}${safePrompt}?width=${dim.w}&height=${dim.h}&seed=${seed + index}&model=${MODEL}&nologo=true`;
+
+      // Create HTML Elements
+      const card = document.createElement("div");
+      card.className = "panel-card";
+
+      card.innerHTML = `
+        <div class="panel-header">
+          <span>PANEL ${index + 1}</span>
+          <span style="color:#777">Flux</span>
+        </div>
+        <div class="img-container">
+          <div class="spinner"></div>
+          <img src="${imageUrl}" onload="this.classList.add('loaded'); this.previousElementSibling.remove()" onerror="handleError(this)">
+        </div>
+        <div class="panel-actions">
+          <button class="mini-btn" onclick="window.open('${imageUrl}', '_blank')">View Full</button>
+          <button class="mini-btn" onclick="regeneratePanel(this, '${safePrompt}', ${dim.w}, ${dim.h})">Regenerate ⟳</button>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    }
+
+    function handleError(img) {
+      img.previousElementSibling.style.display = 'none'; // hide spinner
+      img.alt = "Generation timed out. Click Regenerate.";
+      img.style.opacity = 1;
+      img.style.padding = "20px";
+      img.style.color = "red";
+    }
+
+    function regeneratePanel(btn, prompt, w, h) {
+      const card = btn.closest('.panel-card');
+      const imgContainer = card.querySelector('.img-container');
+      const img = imgContainer.querySelector('img');
+      
+      // Reset UI
+      img.classList.remove('loaded');
+      img.src = "";
+      
+      // Add spinner back
+      let spinner = imgContainer.querySelector('.spinner');
+      if(!spinner) {
+        spinner = document.createElement('div');
+        spinner.className = 'spinner';
+        imgContainer.prepend(spinner);
+      }
+
+      // New random seed for this specific panel
+      const newSeed = Math.floor(Math.random() * 999999999);
+      const newUrl = `${POLLINATIONS_URL}${prompt}?width=${w}&height=${h}&seed=${newSeed}&model=${MODEL}&nologo=true&enhance=true`;
+      
+      // Small delay to force browser to recognize the src change
+      setTimeout(() => {
+        img.src = newUrl;
+      }, 100);
+    }
+  </script>
+</body>
+</html>
